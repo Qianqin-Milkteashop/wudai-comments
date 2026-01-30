@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五代十国人物关系图</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 背景装饰 -->
+    <div class="bg-decoration">
+        <div class="grid-overlay"></div>
+    </div>
+
+    <!-- 网页宠物 -->
+    <div id="webPet" class="web-pet">
+        <div class="pet-character">🐱</div>
+        <div class="pet-bubble" id="petBubble"></div>
+    </div>
+
+    <!-- 顶部导航 -->
+    <header class="header">
+        <div class="container">
+            <h1 class="title">五代十国人物关系图</h1>
+        </div>
+    </header>
+
+    <!-- 浮动操作按钮 -->
+    <div class="floating-actions">
+        <button id="addPersonBtn" class="fab fab-primary" title="添加人物">
+            <span class="fab-icon">+</span>
+            <span class="fab-text">添加人物</span>
+        </button>
+        <button id="addRelationBtn" class="fab fab-secondary" title="添加关系">
+            <span class="fab-icon">⚭</span>
+            <span class="fab-text">添加关系</span>
+        </button>
+        <!-- 管理员按钮会在登录后动态添加 -->
+    </div>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 侧边栏 -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <h3 class="sidebar-title">人物详情</h3>
+                <div id="personDetail" class="person-detail">
+                    <p class="empty-state">点击节点查看详情</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 关系图画布 -->
+        <div class="canvas-container">
+            <div id="graph" class="graph-canvas"></div>
+            <div class="graph-controls">
+                <button id="zoomIn" class="control-btn" title="放大">+</button>
+                <button id="zoomOut" class="control-btn" title="缩小">−</button>
+                <button id="resetZoom" class="control-btn" title="重置">⟲</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 评论区 -->
+    <section class="comments-section">
+        <div class="container">
+            <div class="comments-header">
+                <h2 class="comments-title">评论 <span id="commentCount" class="comment-count">(0)</span></h2>
+                <div class="comments-sort">
+                    <button class="sort-btn active" data-sort="hot" onclick="sortComments('hot')">
+                        🔥 热门
+                    </button>
+                    <button class="sort-btn" data-sort="time" onclick="sortComments('time')">
+                        🕐 最新
+                    </button>
+                </div>
+            </div>
+            
+            <div class="comment-form">
+                <div class="comment-input-wrapper">
+                    <input type="text" id="commentName" class="input comment-name-input" placeholder="昵称（选填）" maxlength="20">
+                    <textarea id="commentText" class="textarea comment-textarea" placeholder="说点什么..." rows="3" maxlength="500"></textarea>
+                    <div class="comment-actions">
+                        <div class="comment-tools">
+                            <button class="tool-btn" onclick="insertEmoji('😊')" title="表情">😊</button>
+                            <button class="tool-btn" onclick="insertEmoji('👍')" title="点赞">👍</button>
+                            <button class="tool-btn" onclick="insertEmoji('❤️')" title="爱心">❤️</button>
+                            <button class="tool-btn" onclick="insertEmoji('😂')" title="笑哭">😂</button>
+                            <button class="tool-btn" onclick="insertEmoji('🤔')" title="思考">🤔</button>
+                        </div>
+                        <button id="submitComment" class="btn btn-primary">发布</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="commentsList" class="comments-list"></div>
+        </div>
+    </section>
+
+    <!-- 管理员登录模态框 -->
+    <div id="adminModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔐 管理员验证</h2>
+                <button class="modal-close" onclick="closeModal('adminModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="password" id="adminPassword" class="input" placeholder="请输入管理员密码" autocomplete="current-password">
+                <p class="help-text">首次使用请设置密码（至少8位，包含字母和数字）</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('adminModal')">取消</button>
+                <button class="btn btn-primary" onclick="verifyAdmin()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑人物模态框 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="editModalTitle">编辑人物</h2>
+                <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editForm">
+                    <div class="form-group">
+                        <label>姓名 *</label>
+                        <input type="text" id="editName" class="input" required maxlength="20">
+                    </div>
+                    <div class="form-group">
+                        <label>职位</label>
+                        <input type="text" id="editPosition" class="input" placeholder="例：后唐庄宗" maxlength="30">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>生年</label>
+                            <input type="text" id="editBirthYear" class="input" placeholder="例：885" maxlength="10">
+                        </div>
+                        <div class="form-group">
+                            <label>卒年</label>
+                            <input type="text" id="editDeathYear" class="input" placeholder="例：926" maxlength="10">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>性格评价</label>
+                        <textarea id="editPersonality" class="textarea" rows="3" placeholder="一句话评价" maxlength="200"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editModal')">取消</button>
+                <button class="btn btn-danger" id="deletePersonBtn" onclick="deletePerson()" style="display: none;">删除</button>
+                <button class="btn btn-primary" onclick="savePerson()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加关系模态框 -->
+    <div id="relationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>添加关系</h2>
+                <button class="modal-close" onclick="closeModal('relationModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="relationForm">
+                    <div class="form-group">
+                        <label>从</label>
+                        <select id="relationFrom" class="input">
+                            <option value="">选择人物</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>到</label>
+                        <select id="relationTo" class="input">
+                            <option value="">选择人物</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>关系类型</label>
+                        <select id="relationType" class="input" onchange="toggleCustomRelation()">
+                            <option value="父子">父子</option>
+                            <option value="母子">母子</option>
+                            <option value="兄弟">兄弟</option>
+                            <option value="姐妹">姐妹</option>
+                            <option value="夫妻">夫妻</option>
+                            <option value="君臣">君臣</option>
+                            <option value="师徒">师徒</option>
+                            <option value="好友">好友</option>
+                            <option value="敌对">敌对</option>
+                            <option value="custom">自定义...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="customRelationGroup" style="display: none;">
+                        <label>自定义关系名称</label>
+                        <input type="text" id="customRelationType" class="input" placeholder="例：养父子、义兄弟等" maxlength="10">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('relationModal')">取消</button>
+                <button class="btn btn-primary" onclick="saveRelation()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div id="toast" class="toast"></div>
+
+    <!-- 引入D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

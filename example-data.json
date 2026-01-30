@@ -1,0 +1,41 @@
+{
+  "nodes": [
+    {
+      "id": "li_cunxu",
+      "name": "李存勖",
+      "position": "后唐庄宗",
+      "birthYear": "885",
+      "deathYear": "926",
+      "personality": "勇武善战，能继父志，然而沉湎戏曲，宠信伶官，终致祸败",
+      "isCenter": true
+    },
+    {
+      "id": "li_keyong",
+      "name": "李克用",
+      "position": "晋王",
+      "birthYear": "856",
+      "deathYear": "908",
+      "personality": "独眼龙王，骁勇善战，为建立后唐奠定基础"
+    },
+    {
+      "id": "liu_shi",
+      "name": "刘氏",
+      "position": "庄宗皇后",
+      "birthYear": "",
+      "deathYear": "",
+      "personality": "贪财好权，干预朝政，加速后唐灭亡"
+    }
+  ],
+  "links": [
+    {
+      "source": "li_keyong",
+      "target": "li_cunxu",
+      "type": "父子"
+    },
+    {
+      "source": "li_cunxu",
+      "target": "liu_shi",
+      "type": "夫妻"
+    }
+  ]
+}
