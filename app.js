@@ -1,0 +1,577 @@
+// Wudai Relations (GitHub Pages frontend)
+// Data is stored in Cloudflare D1 via a Cloudflare Worker API.
+//
+// IMPORTANT: Set your Worker base URL below OR in browser localStorage:
+//   localStorage.setItem('WUDAI_API_BASE','https://<your-worker>.workers.dev');
+
+const API_BASE = (localStorage.getItem('WUDAI_API_BASE') || '').replace(/\/$/, ''); // can be empty if you host frontend on same domain
+
+// Generate a stable client id (used only for ownership hints in UI; backend uses cookies, too)
+const CLIENT_ID_KEY = 'wudai_client_id';
+let CLIENT_ID = localStorage.getItem(CLIENT_ID_KEY);
+if (!CLIENT_ID) {
+  CLIENT_ID = (crypto?.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
+  localStorage.setItem(CLIENT_ID_KEY, CLIENT_ID);
+}
+
+const STATE = {
+  nodes: [],
+  links: [],
+  comments: [],
+  selectedNodeId: null
+};
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function apiUrl(path) {
+  return (API_BASE ? API_BASE : '') + path;
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(apiUrl(path), {
+    credentials: 'include',
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      'content-type': 'application/json',
+      // UI ownership (backend may also set cookie UID)
+      'x-user-id': CLIENT_ID
+    }
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = data.error || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+async function loadState() {
+  const data = await api(`/api/state?ts=${Date.now()}`, { method: 'GET' });
+  STATE.nodes = data.nodes || [];
+  STATE.links = data.links || [];
+  STATE.comments = data.comments || [];
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close')));
+});
+document.querySelectorAll('.modal-close').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close')));
+});
+
+// ---------- Web pet ----------
+(function initPet() {
+  const pet = document.getElementById('webPet');
+  const bubble = document.getElementById('petBubble');
+  const lines = [
+    'I live in the cloud now.',
+    'Tip: Set WUDAI_API_BASE in localStorage.',
+    'Press F8 to test focus (optional).',
+    'Remember to refresh to sync.',
+    'Cloud + D1 = all browsers consistent.'
+  ];
+  let i = 0;
+  const show = (msg) => {
+    bubble.textContent = msg;
+    bubble.classList.add('show');
+    setTimeout(() => bubble.classList.remove('show'), 1800);
+  };
+  pet.addEventListener('click', () => {
+    show(lines[i % lines.length]);
+    i++;
+  });
+})();
+
+// ---------- Comments UI ----------
+let editingCommentId = null;
+
+function renderComments() {
+  const list = document.getElementById('commentsList');
+  list.innerHTML = '';
+
+  if (!STATE.comments.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'No comments yet.';
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const c of STATE.comments) {
+    const item = document.createElement('div');
+    item.className = 'comment-item';
+
+    const header = document.createElement('div');
+    header.className = 'comment-header';
+
+    const left = document.createElement('div');
+    left.innerHTML = `<span class="comment-author">${escapeHtml(c.author || 'Anonymous')}</span>`;
+
+    const right = document.createElement('div');
+    const time = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+    right.innerHTML = `<span class="comment-time">${escapeHtml(time)}</span>`;
+
+    header.appendChild(left);
+    header.appendChild(right);
+
+    const text = document.createElement('div');
+    text.className = 'comment-text';
+    text.textContent = c.content || '';
+
+    const actions = document.createElement('div');
+    actions.className = 'detail-actions';
+
+    // Owner can edit/delete
+    const isOwner = !!c.createdBy && c.createdBy === CLIENT_ID;
+
+    if (isOwner) {
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-secondary';
+      editBtn.textContent = 'Edit';
+      editBtn.addEventListener('click', () => openEditComment(c));
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-danger';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', async () => {
+        if (!confirm('Delete this comment?')) return;
+        try {
+          await api(`/api/comments/${encodeURIComponent(c.id)}`, { method: 'DELETE' });
+          await refreshAll();
+          toast('Deleted');
+        } catch (e) {
+          toast('Delete failed: ' + e.message);
+        }
+      });
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+    }
+
+    item.appendChild(header);
+    item.appendChild(text);
+    if (actions.childNodes.length) item.appendChild(actions);
+    list.appendChild(item);
+  }
+}
+
+function openEditComment(c) {
+  editingCommentId = c.id;
+  document.getElementById('editCommentContent').value = c.content || '';
+  document.getElementById('commentModalHint').textContent = 'Only the creator can edit/delete.';
+  openModal('commentModal');
+}
+
+document.getElementById('btnSaveCommentEdit').addEventListener('click', async () => {
+  const content = document.getElementById('editCommentContent').value.trim();
+  if (!content) return toast('Empty comment');
+  try {
+    await api(`/api/comments/${encodeURIComponent(editingCommentId)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content })
+    });
+    closeModal('commentModal');
+    await refreshAll();
+    toast('Updated');
+  } catch (e) {
+    toast('Update failed: ' + e.message);
+  }
+});
+
+document.getElementById('btnPostComment').addEventListener('click', async () => {
+  const author = document.getElementById('commentAuthor').value.trim() || 'Anonymous';
+  const content = document.getElementById('commentContent').value.trim();
+  if (!content) return toast('Please write something');
+  try {
+    await api('/api/comments', {
+      method: 'POST',
+      body: JSON.stringify({ author, content })
+    });
+    document.getElementById('commentContent').value = '';
+    await refreshAll();
+    toast('Posted');
+  } catch (e) {
+    toast('Post failed: ' + e.message);
+  }
+});
+
+// ---------- Graph UI (D3) ----------
+let svg, g, simulation, zoomBehavior;
+let linkSel, linkLabelSel, nodeSel;
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, (m) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[m]);
+}
+
+function getNodeById(id) {
+  return STATE.nodes.find(n => n.id === id);
+}
+
+function openPersonModal(mode, node) {
+  const title = document.getElementById('personModalTitle');
+  const hint = document.getElementById('personModalHint');
+  const delBtn = document.getElementById('btnDeletePerson');
+
+  title.textContent = mode === 'add' ? 'Add Person' : 'Edit Person';
+  hint.textContent = 'Writes go to Cloudflare D1 (shared to all browsers).';
+
+  document.getElementById('personName').value = node?.name || '';
+  document.getElementById('personPosition').value = node?.position || '';
+  document.getElementById('personBirthYear').value = node?.birthYear || '';
+  document.getElementById('personDeathYear').value = node?.deathYear || '';
+  document.getElementById('personPersonality').value = node?.personality || '';
+
+  delBtn.style.display = (mode === 'edit' && node && !node.isCenter) ? 'inline-flex' : 'none';
+  delBtn.dataset.nodeId = node?.id || '';
+  document.getElementById('btnSavePerson').dataset.mode = mode;
+  document.getElementById('btnSavePerson').dataset.nodeId = node?.id || '';
+
+  openModal('personModal');
+}
+
+document.getElementById('btnAddPerson').addEventListener('click', () => openPersonModal('add'));
+
+document.getElementById('btnSavePerson').addEventListener('click', async (e) => {
+  const mode = e.currentTarget.dataset.mode || 'add';
+  const nodeId = e.currentTarget.dataset.nodeId || '';
+
+  const payload = {
+    name: document.getElementById('personName').value.trim(),
+    position: document.getElementById('personPosition').value.trim(),
+    birthYear: document.getElementById('personBirthYear').value.trim(),
+    deathYear: document.getElementById('personDeathYear').value.trim(),
+    personality: document.getElementById('personPersonality').value.trim()
+  };
+  if (!payload.name) return toast('Name required');
+
+  try {
+    if (mode === 'add') {
+      await api('/api/nodes', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Added');
+    } else {
+      await api(`/api/nodes/${encodeURIComponent(nodeId)}`, { method: 'PUT', body: JSON.stringify({ ...payload, id: nodeId }) });
+      toast('Saved');
+    }
+    closeModal('personModal');
+    await refreshAll();
+  } catch (err) {
+    toast('Save failed: ' + err.message);
+  }
+});
+
+document.getElementById('btnDeletePerson').addEventListener('click', async (e) => {
+  const id = e.currentTarget.dataset.nodeId;
+  if (!id) return;
+  if (!confirm('Delete this person? Links will also be removed.')) return;
+  try {
+    await api(`/api/nodes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    closeModal('personModal');
+    await refreshAll();
+    toast('Deleted');
+  } catch (err) {
+    toast('Delete failed: ' + err.message);
+  }
+});
+
+// Relation modal
+function populateRelationSelects() {
+  const s = document.getElementById('relSource');
+  const t = document.getElementById('relTarget');
+  s.innerHTML = '';
+  t.innerHTML = '';
+  for (const n of STATE.nodes) {
+    const o1 = document.createElement('option');
+    o1.value = n.id; o1.textContent = n.name;
+    const o2 = document.createElement('option');
+    o2.value = n.id; o2.textContent = n.name;
+    s.appendChild(o1);
+    t.appendChild(o2);
+  }
+}
+
+document.getElementById('btnAddRelation').addEventListener('click', () => {
+  populateRelationSelects();
+  document.getElementById('relationModalHint').textContent = '';
+  document.getElementById('relTypeSelect').value = '父子';
+  document.getElementById('relCustomWrap').style.display = 'none';
+  document.getElementById('relCustomType').value = '';
+  openModal('relationModal');
+});
+
+document.getElementById('relTypeSelect').addEventListener('change', (e) => {
+  const v = e.target.value;
+  document.getElementById('relCustomWrap').style.display = (v === '__custom__') ? 'block' : 'none';
+});
+
+document.getElementById('btnSaveRelation').addEventListener('click', async () => {
+  const source = document.getElementById('relSource').value;
+  const target = document.getElementById('relTarget').value;
+  if (!source || !target) return toast('Select nodes');
+  if (source === target) return toast('Choose different nodes');
+
+  let type = document.getElementById('relTypeSelect').value;
+  if (type === '__custom__') {
+    type = document.getElementById('relCustomType').value.trim();
+    if (!type) return toast('Custom type required');
+  }
+
+  try {
+    await api('/api/links', { method: 'POST', body: JSON.stringify({ source, target, type }) });
+    closeModal('relationModal');
+    await refreshAll();
+    toast('Relation added');
+  } catch (e) {
+    toast('Add relation failed: ' + e.message);
+  }
+});
+
+function renderSidebar(nodeId) {
+  const wrap = document.getElementById('sidebarContent');
+  const node = getNodeById(nodeId);
+  if (!node) {
+    wrap.className = 'empty-state';
+    wrap.textContent = 'Click a node to view details.';
+    return;
+  }
+
+  // Relations for this node
+  const rels = STATE.links.filter(l => l.source === nodeId || l.target === nodeId);
+
+  const years = [node.birthYear, node.deathYear].filter(Boolean).join('–');
+  wrap.className = 'person-detail';
+  wrap.innerHTML = `
+    <div class="detail-section">
+      <div class="detail-name">${escapeHtml(node.name)}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Position</div>
+      <div class="detail-value">${escapeHtml(node.position || '')}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Years</div>
+      <div class="detail-value">${escapeHtml(years || '')}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Personality</div>
+      <div class="detail-value">${escapeHtml(node.personality || '')}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-label">Relations</div>
+      <div id="relList"></div>
+    </div>
+    <div class="detail-actions">
+      <button class="btn btn-secondary" id="btnEditNode">Edit</button>
+    </div>
+  `;
+
+  document.getElementById('btnEditNode').addEventListener('click', () => openPersonModal('edit', node));
+
+  const relList = document.getElementById('relList');
+  if (!rels.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = 'No relations.';
+    relList.appendChild(empty);
+  } else {
+    for (const l of rels) {
+      const otherId = (l.source === nodeId) ? l.target : l.source;
+      const other = getNodeById(otherId);
+      const otherName = other ? other.name : otherId;
+
+      const item = document.createElement('div');
+      item.className = 'relation-item';
+
+      const txt = document.createElement('div');
+      txt.className = 'relation-text';
+      txt.textContent = `${otherName} — ${l.type || ''}`;
+      item.appendChild(txt);
+
+      const isOwner = !!l.createdBy && l.createdBy === CLIENT_ID;
+      if (isOwner) {
+        const del = document.createElement('button');
+        del.className = 'relation-delete-btn';
+        del.textContent = '×';
+        del.title = 'Delete relation';
+        del.addEventListener('click', async () => {
+          if (!confirm('Delete this relation?')) return;
+          try {
+            await api(`/api/links/${encodeURIComponent(l.id)}`, { method: 'DELETE' });
+            await refreshAll();
+            toast('Relation deleted');
+          } catch (e) {
+            toast('Delete failed: ' + e.message);
+          }
+        });
+        item.appendChild(del);
+      }
+
+      relList.appendChild(item);
+    }
+  }
+}
+
+function showTooltip(evt, node) {
+  const tt = document.getElementById('nodeTooltip');
+  document.getElementById('ttName').textContent = node.name || '';
+  document.getElementById('ttPos').textContent = node.position || '';
+  document.getElementById('ttYears').textContent = [node.birthYear, node.deathYear].filter(Boolean).join('–');
+  document.getElementById('ttPers').textContent = node.personality || '';
+  tt.style.left = (evt.pageX + 12) + 'px';
+  tt.style.top = (evt.pageY + 12) + 'px';
+  tt.classList.add('show');
+}
+function hideTooltip() {
+  document.getElementById('nodeTooltip').classList.remove('show');
+}
+
+function initGraph() {
+  const container = document.getElementById('graph');
+  container.innerHTML = '';
+  const width = container.clientWidth || 900;
+  const height = container.clientHeight || 600;
+
+  // Runtime copies so D3 can mutate safely
+  const nodes = STATE.nodes.map(n => ({ ...n }));
+  const links = STATE.links.map(l => ({ ...l }));
+
+  svg = d3.select(container).append('svg')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('viewBox', `0 0 ${width} ${height}`);
+
+  g = svg.append('g');
+
+  zoomBehavior = d3.zoom()
+    .scaleExtent([0.3, 3])
+    .on('zoom', (event) => g.attr('transform', event.transform));
+
+  svg.call(zoomBehavior);
+
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(200))
+    .force('charge', d3.forceManyBody().strength(-500))
+    .force('center', d3.forceCenter(width/2, height/2))
+    .force('collision', d3.forceCollide().radius(60))
+    .force('x', d3.forceX(width/2).strength(0.05))
+    .force('y', d3.forceY(height/2).strength(0.05));
+
+  // Lines
+  linkSel = g.append('g').attr('class', 'links')
+    .selectAll('line')
+    .data(links)
+    .enter().append('line')
+    .attr('class', 'link');
+
+  // Link labels
+  linkLabelSel = g.append('g').attr('class', 'link-labels')
+    .selectAll('text')
+    .data(links)
+    .enter().append('text')
+    .attr('class', 'link-label')
+    .attr('text-anchor', 'middle')
+    .text(d => d.type || '');
+
+  // Nodes
+  nodeSel = g.append('g').attr('class', 'nodes')
+    .selectAll('g')
+    .data(nodes)
+    .enter().append('g')
+    .attr('class', d => d.isCenter ? 'node center' : 'node')
+    .call(d3.drag()
+      .on('start', (event, d) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x; d.fy = d.y;
+      })
+      .on('drag', (event, d) => { d.fx = event.x; d.fy = event.y; })
+      .on('end', (event, d) => {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null; d.fy = null;
+      })
+    )
+    .on('click', (event, d) => {
+      event.stopPropagation();
+      STATE.selectedNodeId = d.id;
+      renderSidebar(d.id);
+    })
+    .on('mouseenter', (event, d) => showTooltip(event, d))
+    .on('mouseleave', hideTooltip);
+
+  nodeSel.append('circle').attr('r', d => d.isCenter ? 34 : 28);
+  nodeSel.append('text')
+    .attr('dy', 4)
+    .text(d => d.name || '');
+
+  simulation.on('tick', () => {
+    linkSel
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y);
+
+    nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+
+    linkLabelSel
+      .attr('x', d => (d.source.x + d.target.x) / 2)
+      .attr('y', d => (d.source.y + d.target.y) / 2);
+  });
+
+  // Click blank to clear
+  svg.on('click', () => {
+    STATE.selectedNodeId = null;
+    renderSidebar(null);
+  });
+}
+
+// Controls
+document.getElementById('btnZoomIn').addEventListener('click', () => {
+  svg.transition().call(zoomBehavior.scaleBy, 1.2);
+});
+document.getElementById('btnZoomOut').addEventListener('click', () => {
+  svg.transition().call(zoomBehavior.scaleBy, 0.8);
+});
+document.getElementById('btnReset').addEventListener('click', () => {
+  svg.transition().call(zoomBehavior.transform, d3.zoomIdentity);
+});
+
+// ---------- Refresh ----------
+async function refreshAll() {
+  await loadState();
+  initGraph();
+  renderComments();
+  if (STATE.selectedNodeId) renderSidebar(STATE.selectedNodeId);
+}
+
+function setApiBaseHint() {
+  const hint = document.getElementById('commentHint');
+  if (!API_BASE) {
+    hint.textContent = '⚠️ API base is not set. Open DevTools Console and run: localStorage.setItem("WUDAI_API_BASE","https://<your-worker>.workers.dev"), then refresh.';
+  } else {
+    hint.textContent = '✅ Connected to: ' + API_BASE;
+  }
+}
+
+window.addEventListener('load', async () => {
+  try {
+    setApiBaseHint();
+    await refreshAll();
+    toast('Loaded');
+  } catch (e) {
+    toast('Load failed: ' + e.message);
+  }
+});

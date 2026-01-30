@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Tools</title>
+  <link rel="stylesheet" href="./style.css" />
+  <style>
+    .admin-wrap { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    .admin-card { background: var(--color-bg-secondary); border:2px solid var(--color-border-dark); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow-md); margin-bottom: 1.5rem; }
+    code { background: var(--color-bg); padding: .15rem .4rem; border-radius: 6px; border:1px solid var(--color-border); }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <h1 class="title">Admin Tools</h1>
+    </div>
+  </header>
+
+  <div class="admin-wrap">
+    <div class="admin-card">
+      <h2 style="margin-bottom:1rem;">1) Login (Cloudflare Access)</h2>
+      <p class="help-text">
+        This page contains <b>no passwords</b>. Admin is handled by Cloudflare Access.<br/>
+        Click the button below. If Access is enabled for <code>/api/admin/*</code>, you will be prompted to sign in.
+      </p>
+      <button class="btn btn-primary" id="btnAdminPing">Sign in / Verify Access</button>
+      <p class="help-text" id="adminStatus"></p>
+    </div>
+
+    <div class="admin-card">
+      <h2 style="margin-bottom:1rem;">2) Export Data</h2>
+      <p class="help-text">Download the current state as JSON.</p>
+      <button class="btn btn-secondary" id="btnExport">Export JSON</button>
+    </div>
+
+    <div class="admin-card">
+      <h2 style="margin-bottom:1rem;">3) Import Data</h2>
+      <p class="help-text">Upload a JSON exported earlier to replace the database state.</p>
+      <input type="file" id="importFile" class="input" accept="application/json" />
+      <div style="height: .75rem;"></div>
+      <button class="btn btn-danger" id="btnImport">Import (Replace)</button>
+      <p class="help-text" id="importHint"></p>
+    </div>
+
+    <div class="admin-card">
+      <h2 style="margin-bottom:1rem;">4) Return</h2>
+      <a class="btn btn-secondary" href="./index.html">Back to site</a>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- CONFIG: set your Worker base URL here ----
+    // Example: https://wudai-sync-api.yourname.workers.dev
+    const API_BASE = localStorage.getItem('WUDAI_API_BASE') || '';
+
+    const toast = (msg) => {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'), 2000);
+    };
+
+    async function api(path, options = {}) {
+      const url = (API_BASE || '').replace(/\/$/, '') + path;
+      const res = await fetch(url, {
+        credentials: 'include',
+        ...options,
+        headers: {
+          'content-type': 'application/json',
+          ...(options.headers || {})
+        }
+      });
+      const data = await res.json().catch(()=> ({}));
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      return data;
+    }
+
+    document.getElementById('btnAdminPing').addEventListener('click', async () => {
+      try {
+        const r = await api('/api/admin/ping', { method:'GET' });
+        document.getElementById('adminStatus').textContent = '✅ Access OK: ' + (r.email || 'admin');
+        toast('Access verified');
+      } catch (e) {
+        document.getElementById('adminStatus').textContent = '❌ ' + e.message;
+        toast('Access failed');
+      }
+    });
+
+    document.getElementById('btnExport').addEventListener('click', async () => {
+      try {
+        const state = await api('/api/admin/export', { method:'GET' });
+        const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'wudai-export.json';
+        a.click();
+        toast('Exported');
+      } catch (e) {
+        toast('Export failed: ' + e.message);
+      }
+    });
+
+    document.getElementById('btnImport').addEventListener('click', async () => {
+      const f = document.getElementById('importFile').files[0];
+      if (!f) { toast('Choose a JSON file'); return; }
+      try {
+        const text = await f.text();
+        const payload = JSON.parse(text);
+        await api('/api/admin/import', { method:'POST', body: JSON.stringify(payload) });
+        toast('Imported');
+        document.getElementById('importHint').textContent = '✅ Imported. Refresh the main site.';
+      } catch (e) {
+        toast('Import failed: ' + e.message);
+        document.getElementById('importHint').textContent = '❌ ' + e.message;
+      }
+    });
+  </script>
+</body>
+</html>

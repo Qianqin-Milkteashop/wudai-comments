@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wudai Relations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="bg-decoration"><div class="grid-overlay"></div></div>
+
+  <header class="header">
+    <div class="container">
+      <h1 class="title" id="siteTitle">五代十国人物关系图</h1>
+    </div>
+  </header>
+
+  <!-- Floating actions -->
+  <div class="floating-actions">
+    <button class="fab fab-primary" id="btnAddPerson">
+      <span class="fab-icon">＋</span><span class="fab-text">Add Person</span>
+    </button>
+    <button class="fab fab-secondary" id="btnAddRelation">
+      <span class="fab-icon">⟷</span><span class="fab-text">Add Relation</span>
+    </button>
+  </div>
+
+  <main class="main-content">
+    <aside class="sidebar">
+      <h2 class="sidebar-title">Details</h2>
+      <div id="sidebarContent" class="empty-state">Click a node to view details.</div>
+      <div class="help-text" style="margin-top:1.25rem;">
+        Sync backend: Cloudflare Workers + D1
+        <br/>
+        Admin tools: <a href="./admin.html">admin.html</a> (requires Cloudflare Access)
+      </div>
+    </aside>
+
+    <section class="canvas-container">
+      <div class="graph-controls">
+        <button class="control-btn" id="btnZoomIn" title="Zoom in">＋</button>
+        <button class="control-btn" id="btnZoomOut" title="Zoom out">－</button>
+        <button class="control-btn" id="btnReset" title="Reset view">⟳</button>
+      </div>
+
+      <div id="graph" class="graph-canvas"></div>
+
+      <div id="nodeTooltip" class="node-tooltip">
+        <div class="tooltip-name" id="ttName"></div>
+        <div class="tooltip-item"><span class="tooltip-label">Position:</span><span id="ttPos"></span></div>
+        <div class="tooltip-item"><span class="tooltip-label">Years:</span><span id="ttYears"></span></div>
+        <div class="tooltip-item"><span class="tooltip-label">Personality:</span><span id="ttPers"></span></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Comments -->
+  <section class="comments-section">
+    <div class="container">
+      <h2 class="comments-title">Comments</h2>
+
+      <div class="comment-form">
+        <div class="form-group">
+          <label for="commentAuthor">Name</label>
+          <input id="commentAuthor" class="input" placeholder="Anonymous" />
+        </div>
+        <div class="form-group">
+          <label for="commentContent">Comment</label>
+          <textarea id="commentContent" class="textarea" rows="4" placeholder="Write your comment..."></textarea>
+        </div>
+        <button class="btn btn-primary btn-block" id="btnPostComment">Post</button>
+        <p class="help-text" id="commentHint"></p>
+      </div>
+
+      <div class="comments-list" id="commentsList"></div>
+    </div>
+  </section>
+
+  <!-- Web pet -->
+  <div class="web-pet" id="webPet" title="Click me">
+    <div class="pet-character">🐱</div>
+    <div class="pet-bubble" id="petBubble">Hello!</div>
+  </div>
+
+  <!-- Add/Edit Person Modal -->
+  <div id="personModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2 id="personModalTitle">Add Person</h2>
+        <button class="modal-close" data-close="personModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Name</label>
+          <input id="personName" class="input" />
+        </div>
+
+        <div class="form-group">
+          <label>Position</label>
+          <input id="personPosition" class="input" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Birth Year</label>
+            <input id="personBirthYear" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Death Year</label>
+            <input id="personDeathYear" class="input" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Personality</label>
+          <textarea id="personPersonality" class="textarea" rows="4"></textarea>
+        </div>
+
+        <p class="help-text" id="personModalHint"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close="personModal">Cancel</button>
+        <button class="btn btn-danger" id="btnDeletePerson" style="display:none;">Delete</button>
+        <button class="btn btn-primary" id="btnSavePerson">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Relation Modal -->
+  <div id="relationModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Relation</h2>
+        <button class="modal-close" data-close="relationModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>From</label>
+          <select id="relSource" class="input"></select>
+        </div>
+        <div class="form-group">
+          <label>To</label>
+          <select id="relTarget" class="input"></select>
+        </div>
+
+        <div class="form-group">
+          <label>Type</label>
+          <select id="relTypeSelect" class="input">
+            <option value="父子">父子</option>
+            <option value="母子">母子</option>
+            <option value="兄弟">兄弟</option>
+            <option value="姐妹">姐妹</option>
+            <option value="夫妻">夫妻</option>
+            <option value="君臣">君臣</option>
+            <option value="师徒">师徒</option>
+            <option value="好友">好友</option>
+            <option value="敌对">敌对</option>
+            <option value="其他">其他</option>
+            <option value="__custom__">Custom...</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="relCustomWrap" style="display:none;">
+          <label>Custom Type</label>
+          <input id="relCustomType" class="input" placeholder="e.g. 义兄弟 / 养父子" />
+        </div>
+
+        <p class="help-text" id="relationModalHint"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close="relationModal">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveRelation">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Comment Modal -->
+  <div id="commentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Edit Comment</h2>
+        <button class="modal-close" data-close="commentModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Comment</label>
+          <textarea id="editCommentContent" class="textarea" rows="5"></textarea>
+        </div>
+        <p class="help-text" id="commentModalHint"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close="commentModal">Cancel</button>
+        <button class="btn btn-primary" id="btnSaveCommentEdit">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
