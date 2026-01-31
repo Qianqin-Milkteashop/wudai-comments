@@ -15,6 +15,27 @@ if (!CLIENT_ID) {
   localStorage.setItem(CLIENT_ID_KEY, CLIENT_ID);
 }
 
+// 管理员密钥（可选，只保存在本浏览器；不会写进 GitHub 仓库）
+const ADMIN_KEY_STORAGE = 'WUDAI_ADMIN_KEY';
+const ADMIN_OK_STORAGE = 'WUDAI_ADMIN_OK';
+let ADMIN_KEY = localStorage.getItem(ADMIN_KEY_STORAGE) || '';
+let ADMIN_OK = localStorage.getItem(ADMIN_OK_STORAGE) === '1';
+
+function setAdmin(ok, key = ADMIN_KEY) {
+  ADMIN_OK = !!ok;
+  ADMIN_KEY = key || '';
+  if (ADMIN_KEY) localStorage.setItem(ADMIN_KEY_STORAGE, ADMIN_KEY);
+  else localStorage.removeItem(ADMIN_KEY_STORAGE);
+  localStorage.setItem(ADMIN_OK_STORAGE, ADMIN_OK ? '1' : '0');
+  updateAdminBadge();
+}
+
+function updateAdminBadge() {
+  const badge = document.getElementById('adminBadge');
+  if (!badge) return;
+  badge.classList.toggle('hidden', !ADMIN_OK);
+}
+
 const STATE = {
   nodes: [],
   links: [],
@@ -41,11 +62,14 @@ function apiUrl(path) {
 }
 
 async function api(path, options = {}) {
+  const extraHeaders = {};
+  if (ADMIN_OK && ADMIN_KEY) extraHeaders['x-admin-key'] = ADMIN_KEY;
   const res = await fetch(apiUrl(path), {
     credentials: 'include',
     ...options,
     headers: {
       ...(options.headers || {}),
+      ...extraHeaders,
       'content-type': 'application/json',
       // UI ownership (backend may also set cookie UID)
       'x-user-id': CLIENT_ID
@@ -58,6 +82,109 @@ async function api(path, options = {}) {
     throw new Error(msg);
   }
   return data;
+}
+
+// --------------------
+// 管理员模式（按 Esc 三次触发）
+// --------------------
+async function adminPing(key) {
+  // 用 /api/admin/ping 验证密钥是否正确
+  const res = await fetch(apiUrl('/api/admin/ping'), {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'x-admin-key': key,
+      'x-user-id': CLIENT_ID
+    }
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || '管理员密钥不正确');
+  }
+  return true;
+}
+
+function setAdminOk(ok) {
+  ADMIN_OK = !!ok;
+  localStorage.setItem(ADMIN_OK_STORAGE, ADMIN_OK ? '1' : '0');
+  updateAdminBadge();
+}
+
+function setAdminKey(key) {
+  ADMIN_KEY = (key || '').trim();
+  localStorage.setItem(ADMIN_KEY_STORAGE, ADMIN_KEY);
+}
+
+function clearAdmin() {
+  ADMIN_KEY = '';
+  ADMIN_OK = false;
+  localStorage.removeItem(ADMIN_KEY_STORAGE);
+  localStorage.removeItem(ADMIN_OK_STORAGE);
+  updateAdminBadge();
+}
+
+function openAdminModal() {
+  const input = document.getElementById('adminKeyInput');
+  const logoutBtn = document.getElementById('adminLogoutBtn');
+  const loginBtn = document.getElementById('adminLoginBtn');
+  if (logoutBtn) logoutBtn.style.display = ADMIN_OK ? 'inline-flex' : 'none';
+  if (loginBtn) loginBtn.textContent = ADMIN_OK ? '重新进入' : '进入';
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+  openModal('adminModal');
+}
+
+async function handleAdminLogin() {
+  const input = document.getElementById('adminKeyInput');
+  const key = (input ? input.value : '').trim();
+  if (!key) {
+    toast('请输入管理员密钥');
+    return;
+  }
+  try {
+    await adminPing(key);
+    setAdminKey(key);
+    setAdminOk(true);
+    closeModal('adminModal');
+    toast('已进入管理员模式');
+  } catch (e) {
+    clearAdmin();
+    toast('进入失败：' + (e.message || '未知原因'));
+  }
+}
+
+function handleAdminLogout() {
+  clearAdmin();
+  closeModal('adminModal');
+  toast('已退出管理员模式');
+}
+
+function setupAdminEscTriple() {
+  let escCount = 0;
+  let timer = null;
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || e.repeat) return;
+    escCount += 1;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      escCount = 0;
+      timer = null;
+    }, 900);
+
+    if (escCount >= 3) {
+      escCount = 0;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      // 已是管理员：再按三次 Esc 退出
+      if (ADMIN_OK) {
+        handleAdminLogout();
+      } else {
+        openAdminModal();
+      }
+    }
+  }, true);
 }
 
 async function loadState() {
@@ -598,15 +725,18 @@ async function refreshAll() {
 function setApiBaseHint() {
   const hint = document.getElementById('commentHint');
   if (!API_BASE) {
-    hint.textContent = '⚠️ API base is not set. Open DevTools Console and run: localStorage.setItem("WUDAI_API_BASE","https://<your-worker>.workers.dev"), then refresh.';
+    hint.textContent = '⚠️ 暂未连接到同步服务：现在的修改不会保存。请联系站点管理员。';
   } else {
-    hint.textContent = '✅ Connected to: ' + API_BASE;
+    hint.textContent = '✅ 已连接同步服务';
   }
 }
 
 window.addEventListener('load', async () => {
   try {
     setApiBaseHint();
+    updateAdminBadge();
+    setupAdminModal();
+    setupAdminHotkeySequence();
     await refreshAll();
     toast('已加载');
   } catch (e) {

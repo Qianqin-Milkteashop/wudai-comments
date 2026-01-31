@@ -83,6 +83,9 @@
     <div class="pet-bubble" id="petBubble">喵～</div>
   </div>
 
+  <!-- 管理员标记（默认隐藏；按 Esc 三次可打开/退出管理员） -->
+  <div id="adminBadge" class="admin-badge hidden">管理员模式</div>
+
   <!-- Add/Edit Person Modal -->
   <div id="personModal" class="modal">
     <div class="modal-content modal-large">
@@ -192,6 +195,31 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" data-close="commentModal">取消</button>
         <button class="btn btn-primary" id="btnSaveCommentEdit">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Modal（按 Esc 三次打开；在里面点“退出”即可退出） -->
+  <div id="adminModal" class="modal" aria-hidden="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>管理员模式</h2>
+        <button class="modal-close" data-close="adminModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="help-text" style="margin-top:0;">
+          说明：管理员密钥不会写在网页里，只会保存在你当前浏览器里。
+        </p>
+        <div class="form-group">
+          <label>管理员密钥</label>
+          <input id="adminKeyInput" class="input" type="password" placeholder="请输入密钥" autocomplete="off" />
+        </div>
+        <p class="help-text" id="adminModalHint"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close="adminModal">取消</button>
+        <button class="btn btn-danger" id="btnAdminLogout" style="display:none;">退出管理员</button>
+        <button class="btn btn-primary" id="btnAdminLogin">进入</button>
       </div>
     </div>
   </div>
