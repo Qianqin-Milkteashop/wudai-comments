@@ -29,6 +29,13 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+function on(id, evt, handler) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener(evt, handler);
+}
+
+
 function apiUrl(path) {
   return (API_BASE ? API_BASE : '') + path;
 }
@@ -79,11 +86,15 @@ document.querySelectorAll('.modal-close').forEach(btn => {
   const pet = document.getElementById('webPet');
   const bubble = document.getElementById('petBubble');
   const lines = [
-    '我现在住在云端。',
-    '提示：可在 localStorage 里设置 WUDAI_API_BASE。',
-    '按 F8 可测试焦点（可选）。',
-    '记得刷新以同步。',
-    'Workers + D1 = 所有浏览器一致。'
+    '你好呀～点点人物圆圈可以看详情喔',
+    '想加新人物？点下面“添加人物”',
+    '想连关系？点“添加关系”，再选两个人',
+    '关系线中间的字就是关系类型～',
+    '评论写在页面下方，大家都能看到',
+    '写错了也没关系，自己可以修改哦',
+    '拖一拖人物，它会自己排得更好看',
+    '如果卡住了，刷新一下页面试试',
+    '我在右下角陪你～喵！',
   ];
   let i = 0;
   const show = (msg) => {
@@ -143,7 +154,7 @@ function renderComments() {
       const editBtn = document.createElement('button');
       editBtn.className = 'btn btn-secondary';
       editBtn.textContent = '编辑';
-      editBtn.addEventListener('click', () => open编辑Comment(c));
+      editBtn.addEventListener('click', () => openEditComment(c));
 
       const delBtn = document.createElement('button');
       delBtn.className = 'btn btn-danger';
@@ -170,14 +181,14 @@ function renderComments() {
   }
 }
 
-function open编辑Comment(c) {
+function openEditComment(c) {
   editingCommentId = c.id;
   document.getElementById('editCommentContent').value = c.content || '';
-  document.getElementById('commentModalHint').textContent = 'Only the creator can edit/delete.';
+  document.getElementById('commentModalHint').textContent = '只有评论发布者（或管理员）可以编辑/删除。';
   openModal('commentModal');
 }
 
-document.getElementById('btnSaveComment编辑').addEventListener('click', async () => {
+on('btnSaveCommentEdit','\1', async () => {
   const content = document.getElementById('editCommentContent').value.trim();
   if (!content) return toast('评论不能为空');
   try {
@@ -193,7 +204,7 @@ document.getElementById('btnSaveComment编辑').addEventListener('click', async 
   }
 });
 
-document.getElementById('btnPostComment').addEventListener('click', async () => {
+on('btnPostComment','\1', async () => {
   const author = document.getElementById('commentAuthor').value.trim() || '匿名';
   const content = document.getElementById('commentContent').value.trim();
   if (!content) return toast('请先写点内容');
@@ -227,10 +238,10 @@ function getNodeById(id) {
 function openPersonModal(mode, node) {
   const title = document.getElementById('personModalTitle');
   const hint = document.getElementById('personModalHint');
-  const delBtn = document.getElementById('btn删除Person');
+  const delBtn = document.getElementById('btnDeletePerson');
 
-  title.textContent = mode === 'add' ? 'Add Person' : '编辑 Person';
-  hint.textContent = '修改会写入 Cloudflare D1，并在所有浏览器同步。';
+  title.textContent = mode === 'add' ? '添加人物' : '编辑人物';
+  hint.textContent = '保存后，大家打开都会是最新内容。';
 
   document.getElementById('personName').value = node?.name || '';
   document.getElementById('personPosition').value = node?.position || '';
@@ -246,9 +257,9 @@ function openPersonModal(mode, node) {
   openModal('personModal');
 }
 
-document.getElementById('btnAddPerson').addEventListener('click', () => openPersonModal('add'));
+on('btnAddPerson','\1', () => openPersonModal('add'));
 
-document.getElementById('btnSavePerson').addEventListener('click', async (e) => {
+on('btnSavePerson','\1', async (e) => {
   const mode = e.currentTarget.dataset.mode || 'add';
   const nodeId = e.currentTarget.dataset.nodeId || '';
 
@@ -276,7 +287,7 @@ document.getElementById('btnSavePerson').addEventListener('click', async (e) => 
   }
 });
 
-document.getElementById('btn删除Person').addEventListener('click', async (e) => {
+on('btnDeletePerson','\1', async (e) => {
   const id = e.currentTarget.dataset.nodeId;
   if (!id) return;
   if (!confirm('确定删除该人物吗？相关关系线也会一并删除。')) return;
@@ -306,7 +317,7 @@ function populateRelationSelects() {
   }
 }
 
-document.getElementById('btnAddRelation').addEventListener('click', () => {
+on('btnAddRelation','\1', () => {
   populateRelationSelects();
   document.getElementById('relationModalHint').textContent = '';
   document.getElementById('relTypeSelect').value = '父子';
@@ -315,12 +326,12 @@ document.getElementById('btnAddRelation').addEventListener('click', () => {
   openModal('relationModal');
 });
 
-document.getElementById('relTypeSelect').addEventListener('change', (e) => {
+on('relTypeSelect','\1', (e) => {
   const v = e.target.value;
   document.getElementById('relCustomWrap').style.display = (v === '__custom__') ? 'block' : 'none';
 });
 
-document.getElementById('btnSaveRelation').addEventListener('click', async () => {
+on('btnSaveRelation','\1', async () => {
   const source = document.getElementById('relSource').value;
   const target = document.getElementById('relTarget').value;
   if (!source || !target) return toast('请选择两个人物');
@@ -338,7 +349,7 @@ document.getElementById('btnSaveRelation').addEventListener('click', async () =>
     await refreshAll();
     toast('关系已添加');
   } catch (e) {
-    toast('Add relation failed: ' + e.message);
+    toast('添加关系失败：' + e.message);
   }
 });
 
@@ -347,7 +358,7 @@ function renderSidebar(nodeId) {
   const node = getNodeById(nodeId);
   if (!node) {
     wrap.className = 'empty-state';
-    wrap.textContent = 'Click a node to view details.';
+    wrap.textContent = '点击人物节点查看详情。';
     return;
   }
 
@@ -540,13 +551,13 @@ function initGraph() {
 }
 
 // Controls
-document.getElementById('btnZoomIn').addEventListener('click', () => {
+on('btnZoomIn','\1', () => {
   svg.transition().call(zoomBehavior.scaleBy, 1.2);
 });
-document.getElementById('btnZoomOut').addEventListener('click', () => {
+on('btnZoomOut','\1', () => {
   svg.transition().call(zoomBehavior.scaleBy, 0.8);
 });
-document.getElementById('btnReset').addEventListener('click', () => {
+on('btnReset','\1', () => {
   svg.transition().call(zoomBehavior.transform, d3.zoomIdentity);
 });
 
@@ -573,6 +584,6 @@ window.addEventListener('load', async () => {
     await refreshAll();
     toast('已加载');
   } catch (e) {
-    toast('Load failed: ' + e.message);
+    toast('加载失败：' + e.message);
   }
 });
