@@ -187,6 +187,33 @@ function setupAdminEscTriple() {
   }, true);
 }
 
+function setupAdminModal() {
+  // 绑定“数据管理”按钮和弹窗里的登录/退出按钮
+  const openBtn = document.getElementById("openAdminBtn");
+  const closeBtn = document.getElementById("closeAdminBtn");
+  const loginBtn = document.getElementById("adminLoginBtn");
+  const logoutBtn = document.getElementById("adminLogoutBtn");
+  const keyInput = document.getElementById("adminKeyInput");
+
+  if (openBtn) openBtn.addEventListener("click", openAdminModal);
+  if (closeBtn) closeBtn.addEventListener("click", closeAdminModal);
+  if (loginBtn) loginBtn.addEventListener("click", handleAdminLogin);
+  if (logoutBtn) logoutBtn.addEventListener("click", handleAdminLogout);
+
+  if (keyInput) {
+    keyInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handleAdminLogin();
+    });
+  }
+
+  // 三次 ESC 进入/退出管理员
+  setupAdminEscTriple();
+
+  // 初始渲染一次徽标/按钮状态
+  updateAdminBadge();
+}
+
+
 async function loadState() {
   const data = await api(`/api/state?ts=${Date.now()}`, { method: 'GET' });
   STATE.nodes = data.nodes || [];

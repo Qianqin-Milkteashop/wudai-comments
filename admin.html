@@ -55,7 +55,8 @@
   <script>
     // ---- CONFIG: set your Worker base URL here ----
     // Example: https://wudai-sync-api.yourname.workers.dev
-    const API_BASE = localStorage.getItem('WUDAI_API_BASE') || '';
+    const DEFAULT_API_BASE = 'https://wudai-sync-api.wudai-sync-qianqin.workers.dev';
+    const API_BASE = (localStorage.getItem('WUDAI_API_BASE') || DEFAULT_API_BASE).replace(/\/+$/, '');
 
     const toast = (msg) => {
       const t = document.getElementById('toast');
