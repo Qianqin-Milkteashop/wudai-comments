@@ -188,7 +188,7 @@ function openEditComment(c) {
   openModal('commentModal');
 }
 
-on('btnSaveCommentEdit','\1', async () => {
+on('btnSaveCommentEdit','click', async () => {
   const content = document.getElementById('editCommentContent').value.trim();
   if (!content) return toast('评论不能为空');
   try {
@@ -204,7 +204,7 @@ on('btnSaveCommentEdit','\1', async () => {
   }
 });
 
-on('btnPostComment','\1', async () => {
+on('btnPostComment','click', async () => {
   const author = document.getElementById('commentAuthor').value.trim() || '匿名';
   const content = document.getElementById('commentContent').value.trim();
   if (!content) return toast('请先写点内容');
@@ -257,9 +257,9 @@ function openPersonModal(mode, node) {
   openModal('personModal');
 }
 
-on('btnAddPerson','\1', () => openPersonModal('add'));
+on('btnAddPerson','click', () => openPersonModal('add'));
 
-on('btnSavePerson','\1', async (e) => {
+on('btnSavePerson','click', async (e) => {
   const mode = e.currentTarget.dataset.mode || 'add';
   const nodeId = e.currentTarget.dataset.nodeId || '';
 
@@ -287,7 +287,7 @@ on('btnSavePerson','\1', async (e) => {
   }
 });
 
-on('btnDeletePerson','\1', async (e) => {
+on('btnDeletePerson','click', async (e) => {
   const id = e.currentTarget.dataset.nodeId;
   if (!id) return;
   if (!confirm('确定删除该人物吗？相关关系线也会一并删除。')) return;
@@ -317,7 +317,7 @@ function populateRelationSelects() {
   }
 }
 
-on('btnAddRelation','\1', () => {
+on('btnAddRelation','click', () => {
   populateRelationSelects();
   document.getElementById('relationModalHint').textContent = '';
   document.getElementById('relTypeSelect').value = '父子';
@@ -326,12 +326,12 @@ on('btnAddRelation','\1', () => {
   openModal('relationModal');
 });
 
-on('relTypeSelect','\1', (e) => {
+on('relTypeSelect','change', (e) => {
   const v = e.target.value;
   document.getElementById('relCustomWrap').style.display = (v === '__custom__') ? 'block' : 'none';
 });
 
-on('btnSaveRelation','\1', async () => {
+on('btnSaveRelation','click', async () => {
   const source = document.getElementById('relSource').value;
   const target = document.getElementById('relTarget').value;
   if (!source || !target) return toast('请选择两个人物');
@@ -372,19 +372,19 @@ function renderSidebar(nodeId) {
       <div class="detail-name">${escapeHtml(node.name)}</div>
     </div>
     <div class="detail-section">
-      <div class="detail-label">Position</div>
+      <div class="detail-label">职位</div>
       <div class="detail-value">${escapeHtml(node.position || '')}</div>
     </div>
     <div class="detail-section">
-      <div class="detail-label">Years</div>
+      <div class="detail-label">生卒年</div>
       <div class="detail-value">${escapeHtml(years || '')}</div>
     </div>
     <div class="detail-section">
-      <div class="detail-label">Personality</div>
+      <div class="detail-label">性格评价</div>
       <div class="detail-value">${escapeHtml(node.personality || '')}</div>
     </div>
     <div class="detail-section">
-      <div class="detail-label">Relations</div>
+      <div class="detail-label">关系</div>
       <div id="relList"></div>
     </div>
     <div class="detail-actions">
@@ -398,7 +398,7 @@ function renderSidebar(nodeId) {
   if (!rels.length) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
-    empty.textContent = 'No relations.';
+    empty.textContent = '暂无关系。';
     relList.appendChild(empty);
   } else {
     for (const l of rels) {
@@ -440,16 +440,42 @@ function renderSidebar(nodeId) {
 
 function showTooltip(evt, node) {
   const tt = document.getElementById('nodeTooltip');
-  document.getElementById('ttName').textContent = node.name || '';
-  document.getElementById('ttPos').textContent = node.position || '';
-  document.getElementById('ttYears').textContent = [node.birthYear, node.deathYear].filter(Boolean).join('–');
-  document.getElementById('ttPers').textContent = node.personality || '';
-  tt.style.left = (evt.pageX + 12) + 'px';
-  tt.style.top = (evt.pageY + 12) + 'px';
+  const wrap = document.getElementById('canvasContainer');
+  if (!tt || !wrap) return;
+
+  // 先填内容
+  const nameEl = document.getElementById('ttName');
+  const posEl = document.getElementById('ttPos');
+  const yearsEl = document.getElementById('ttYears');
+  const persEl = document.getElementById('ttPers');
+
+  if (nameEl) nameEl.textContent = node.name || '';
+  if (posEl) posEl.textContent = node.position || '';
+  if (yearsEl) yearsEl.textContent = [node.birthYear, node.deathYear].filter(Boolean).join('—');
+  if (persEl) persEl.textContent = node.personality || '';
+
+  // 关键：提示框在 canvasContainer 里，所以坐标要换成“相对容器”的坐标（否则会偏到很远）
+  const r = wrap.getBoundingClientRect();
+  const clientX = (evt && typeof evt.clientX === 'number') ? evt.clientX : 0;
+  const clientY = (evt && typeof evt.clientY === 'number') ? evt.clientY : 0;
+
+  let x = clientX - r.left + 12;
+  let y = clientY - r.top + 12;
+
+  // 防止提示框跑出容器
+  const maxX = Math.max(8, wrap.clientWidth - 320);
+  const maxY = Math.max(8, wrap.clientHeight - 180);
+  x = Math.max(8, Math.min(x, maxX));
+  y = Math.max(8, Math.min(y, maxY));
+
+  tt.style.left = x + 'px';
+  tt.style.top = y + 'px';
   tt.classList.add('show');
 }
+
 function hideTooltip() {
-  document.getElementById('nodeTooltip').classList.remove('show');
+  const tt = document.getElementById('nodeTooltip');
+  if (tt) tt.classList.remove('show');
 }
 
 function initGraph() {
@@ -551,13 +577,13 @@ function initGraph() {
 }
 
 // Controls
-on('btnZoomIn','\1', () => {
+on('btnZoomIn','click', () => {
   svg.transition().call(zoomBehavior.scaleBy, 1.2);
 });
-on('btnZoomOut','\1', () => {
+on('btnZoomOut','click', () => {
   svg.transition().call(zoomBehavior.scaleBy, 0.8);
 });
-on('btnReset','\1', () => {
+on('btnReset','click', () => {
   svg.transition().call(zoomBehavior.transform, d3.zoomIdentity);
 });
 
