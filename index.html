@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Wudai Relations</title>
+  <title>五代十国人物关系图</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
@@ -21,38 +21,38 @@
   <!-- Floating actions -->
   <div class="floating-actions">
     <button class="fab fab-primary" id="btnAddPerson">
-      <span class="fab-icon">＋</span><span class="fab-text">Add Person</span>
+      <span class="fab-icon">＋</span><span class="fab-text">添加人物</span>
     </button>
     <button class="fab fab-secondary" id="btnAddRelation">
-      <span class="fab-icon">⟷</span><span class="fab-text">Add Relation</span>
+      <span class="fab-icon">⟷</span><span class="fab-text">添加关系</span>
     </button>
   </div>
 
   <main class="main-content">
     <aside class="sidebar">
-      <h2 class="sidebar-title">Details</h2>
-      <div id="sidebarContent" class="empty-state">Click a node to view details.</div>
+      <h2 class="sidebar-title">人物详情</h2>
+      <div id="sidebarContent" class="empty-state">点击人物节点查看详情。</div>
       <div class="help-text" style="margin-top:1.25rem;">
-        Sync backend: Cloudflare Workers + D1
+        同步后端：Cloudflare Workers + D1
         <br/>
-        Admin tools: <a href="./admin.html">admin.html</a> (requires Cloudflare Access)
+        管理工具： <a href="./admin.html">admin.html</a> （需要 Cloudflare Access）
       </div>
     </aside>
 
     <section class="canvas-container">
       <div class="graph-controls">
-        <button class="control-btn" id="btnZoomIn" title="Zoom in">＋</button>
-        <button class="control-btn" id="btnZoomOut" title="Zoom out">－</button>
-        <button class="control-btn" id="btnReset" title="Reset view">⟳</button>
+        <button class="control-btn" id="btnZoomIn" title="放大">＋</button>
+        <button class="control-btn" id="btnZoomOut" title="缩小">－</button>
+        <button class="control-btn" id="btnReset" title="复位">⟳</button>
       </div>
 
       <div id="graph" class="graph-canvas"></div>
 
       <div id="nodeTooltip" class="node-tooltip">
         <div class="tooltip-name" id="ttName"></div>
-        <div class="tooltip-item"><span class="tooltip-label">Position:</span><span id="ttPos"></span></div>
-        <div class="tooltip-item"><span class="tooltip-label">Years:</span><span id="ttYears"></span></div>
-        <div class="tooltip-item"><span class="tooltip-label">Personality:</span><span id="ttPers"></span></div>
+        <div class="tooltip-item"><span class="tooltip-label">职位：</span><span id="ttPos"></span></div>
+        <div class="tooltip-item"><span class="tooltip-label">生卒年：</span><span id="ttYears"></span></div>
+        <div class="tooltip-item"><span class="tooltip-label">性格评价：</span><span id="ttPers"></span></div>
       </div>
     </section>
   </main>
@@ -60,18 +60,18 @@
   <!-- Comments -->
   <section class="comments-section">
     <div class="container">
-      <h2 class="comments-title">Comments</h2>
+      <h2 class="comments-title">评论</h2>
 
       <div class="comment-form">
         <div class="form-group">
-          <label for="commentAuthor">Name</label>
-          <input id="commentAuthor" class="input" placeholder="Anonymous" />
+          <label for="commentAuthor">昵称</label>
+          <input id="commentAuthor" class="input" placeholder="匿名" />
         </div>
         <div class="form-group">
-          <label for="commentContent">Comment</label>
-          <textarea id="commentContent" class="textarea" rows="4" placeholder="Write your comment..."></textarea>
+          <label for="commentContent">评论</label>
+          <textarea id="commentContent" class="textarea" rows="4" placeholder="写点评论吧…"></textarea>
         </div>
-        <button class="btn btn-primary btn-block" id="btnPostComment">Post</button>
+        <button class="btn btn-primary btn-block" id="btnPostComment">发布</button>
         <p class="help-text" id="commentHint"></p>
       </div>
 
@@ -80,51 +80,51 @@
   </section>
 
   <!-- Web pet -->
-  <div class="web-pet" id="webPet" title="Click me">
+  <div class="web-pet" id="webPet" title="点我">
     <div class="pet-character">🐱</div>
-    <div class="pet-bubble" id="petBubble">Hello!</div>
+    <div class="pet-bubble" id="petBubble">喵～</div>
   </div>
 
   <!-- Add/Edit Person Modal -->
   <div id="personModal" class="modal">
     <div class="modal-content modal-large">
       <div class="modal-header">
-        <h2 id="personModalTitle">Add Person</h2>
+        <h2 id="personModalTitle">添加人物</h2>
         <button class="modal-close" data-close="personModal">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Name</label>
+          <label>昵称</label>
           <input id="personName" class="input" />
         </div>
 
         <div class="form-group">
-          <label>Position</label>
+          <label>职位</label>
           <input id="personPosition" class="input" />
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label>Birth Year</label>
+            <label>出生年</label>
             <input id="personBirthYear" class="input" />
           </div>
           <div class="form-group">
-            <label>Death Year</label>
+            <label>去世年</label>
             <input id="personDeathYear" class="input" />
           </div>
         </div>
 
         <div class="form-group">
-          <label>Personality</label>
+          <label>性格评价</label>
           <textarea id="personPersonality" class="textarea" rows="4"></textarea>
         </div>
 
         <p class="help-text" id="personModalHint"></p>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-close="personModal">Cancel</button>
-        <button class="btn btn-danger" id="btnDeletePerson" style="display:none;">Delete</button>
-        <button class="btn btn-primary" id="btnSavePerson">Save</button>
+        <button class="btn btn-secondary" data-close="personModal">取消</button>
+        <button class="btn btn-danger" id="btnDeletePerson" style="display:none;">删除</button>
+        <button class="btn btn-primary" id="btnSavePerson">保存</button>
       </div>
     </div>
   </div>
@@ -133,21 +133,21 @@
   <div id="relationModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Add Relation</h2>
+        <h2>添加关系</h2>
         <button class="modal-close" data-close="relationModal">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>From</label>
+          <label>从</label>
           <select id="relSource" class="input"></select>
         </div>
         <div class="form-group">
-          <label>To</label>
+          <label>到</label>
           <select id="relTarget" class="input"></select>
         </div>
 
         <div class="form-group">
-          <label>Type</label>
+          <label>关系类型</label>
           <select id="relTypeSelect" class="input">
             <option value="父子">父子</option>
             <option value="母子">母子</option>
@@ -159,20 +159,20 @@
             <option value="好友">好友</option>
             <option value="敌对">敌对</option>
             <option value="其他">其他</option>
-            <option value="__custom__">Custom...</option>
+            <option value="__custom__">自定义…</option>
           </select>
         </div>
 
         <div class="form-group" id="relCustomWrap" style="display:none;">
-          <label>Custom Type</label>
+          <label>自定义类型</label>
           <input id="relCustomType" class="input" placeholder="e.g. 义兄弟 / 养父子" />
         </div>
 
         <p class="help-text" id="relationModalHint"></p>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-close="relationModal">Cancel</button>
-        <button class="btn btn-primary" id="btnSaveRelation">Save</button>
+        <button class="btn btn-secondary" data-close="relationModal">取消</button>
+        <button class="btn btn-primary" id="btnSaveRelation">保存</button>
       </div>
     </div>
   </div>
@@ -181,19 +181,19 @@
   <div id="commentModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Edit Comment</h2>
+        <h2>编辑评论</h2>
         <button class="modal-close" data-close="commentModal">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Comment</label>
+          <label>评论</label>
           <textarea id="editCommentContent" class="textarea" rows="5"></textarea>
         </div>
         <p class="help-text" id="commentModalHint"></p>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-close="commentModal">Cancel</button>
-        <button class="btn btn-primary" id="btnSaveCommentEdit">Save</button>
+        <button class="btn btn-secondary" data-close="commentModal">取消</button>
+        <button class="btn btn-primary" id="btnSaveCommentEdit">保存</button>
       </div>
     </div>
   </div>

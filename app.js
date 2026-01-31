@@ -4,7 +4,8 @@
 // IMPORTANT: Set your Worker base URL below OR in browser localStorage:
 //   localStorage.setItem('WUDAI_API_BASE','https://<your-worker>.workers.dev');
 
-const API_BASE = (localStorage.getItem('WUDAI_API_BASE') || '').replace(/\/$/, ''); // can be empty if you host frontend on same domain
+const DEFAULT_API_BASE = 'https://wudai-sync-api.wudai-sync-qianqin.workers.dev'; // 默认后端（可按需修改）
+const API_BASE = (localStorage.getItem('WUDAI_API_BASE') || DEFAULT_API_BASE).replace(/\/+$/, '');
 
 // Generate a stable client id (used only for ownership hints in UI; backend uses cookies, too)
 const CLIENT_ID_KEY = 'wudai_client_id';
@@ -78,11 +79,11 @@ document.querySelectorAll('.modal-close').forEach(btn => {
   const pet = document.getElementById('webPet');
   const bubble = document.getElementById('petBubble');
   const lines = [
-    'I live in the cloud now.',
-    'Tip: Set WUDAI_API_BASE in localStorage.',
-    'Press F8 to test focus (optional).',
-    'Remember to refresh to sync.',
-    'Cloud + D1 = all browsers consistent.'
+    '我现在住在云端。',
+    '提示：可在 localStorage 里设置 WUDAI_API_BASE。',
+    '按 F8 可测试焦点（可选）。',
+    '记得刷新以同步。',
+    'Workers + D1 = 所有浏览器一致。'
   ];
   let i = 0;
   const show = (msg) => {
@@ -106,7 +107,7 @@ function renderComments() {
   if (!STATE.comments.length) {
     const empty = document.createElement('div');
     empty.className = 'empty-state';
-    empty.textContent = 'No comments yet.';
+    empty.textContent = '还没有评论。';
     list.appendChild(empty);
     return;
   }
@@ -119,7 +120,7 @@ function renderComments() {
     header.className = 'comment-header';
 
     const left = document.createElement('div');
-    left.innerHTML = `<span class="comment-author">${escapeHtml(c.author || 'Anonymous')}</span>`;
+    left.innerHTML = `<span class="comment-author">${escapeHtml(c.author || '匿名')}</span>`;
 
     const right = document.createElement('div');
     const time = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
@@ -141,20 +142,20 @@ function renderComments() {
     if (isOwner) {
       const editBtn = document.createElement('button');
       editBtn.className = 'btn btn-secondary';
-      editBtn.textContent = 'Edit';
-      editBtn.addEventListener('click', () => openEditComment(c));
+      editBtn.textContent = '编辑';
+      editBtn.addEventListener('click', () => open编辑Comment(c));
 
       const delBtn = document.createElement('button');
       delBtn.className = 'btn btn-danger';
-      delBtn.textContent = 'Delete';
+      delBtn.textContent = '删除';
       delBtn.addEventListener('click', async () => {
-        if (!confirm('Delete this comment?')) return;
+        if (!confirm('确定删除这条评论吗？')) return;
         try {
           await api(`/api/comments/${encodeURIComponent(c.id)}`, { method: 'DELETE' });
           await refreshAll();
-          toast('Deleted');
+          toast('已删除');
         } catch (e) {
-          toast('Delete failed: ' + e.message);
+          toast('删除失败：' + e.message);
         }
       });
 
@@ -169,16 +170,16 @@ function renderComments() {
   }
 }
 
-function openEditComment(c) {
+function open编辑Comment(c) {
   editingCommentId = c.id;
   document.getElementById('editCommentContent').value = c.content || '';
   document.getElementById('commentModalHint').textContent = 'Only the creator can edit/delete.';
   openModal('commentModal');
 }
 
-document.getElementById('btnSaveCommentEdit').addEventListener('click', async () => {
+document.getElementById('btnSaveComment编辑').addEventListener('click', async () => {
   const content = document.getElementById('editCommentContent').value.trim();
-  if (!content) return toast('Empty comment');
+  if (!content) return toast('评论不能为空');
   try {
     await api(`/api/comments/${encodeURIComponent(editingCommentId)}`, {
       method: 'PUT',
@@ -186,16 +187,16 @@ document.getElementById('btnSaveCommentEdit').addEventListener('click', async ()
     });
     closeModal('commentModal');
     await refreshAll();
-    toast('Updated');
+    toast('已更新');
   } catch (e) {
-    toast('Update failed: ' + e.message);
+    toast('更新失败：' + e.message);
   }
 });
 
 document.getElementById('btnPostComment').addEventListener('click', async () => {
-  const author = document.getElementById('commentAuthor').value.trim() || 'Anonymous';
+  const author = document.getElementById('commentAuthor').value.trim() || '匿名';
   const content = document.getElementById('commentContent').value.trim();
-  if (!content) return toast('Please write something');
+  if (!content) return toast('请先写点内容');
   try {
     await api('/api/comments', {
       method: 'POST',
@@ -203,9 +204,9 @@ document.getElementById('btnPostComment').addEventListener('click', async () => 
     });
     document.getElementById('commentContent').value = '';
     await refreshAll();
-    toast('Posted');
+    toast('已发布');
   } catch (e) {
-    toast('Post failed: ' + e.message);
+    toast('发布失败：' + e.message);
   }
 });
 
@@ -226,10 +227,10 @@ function getNodeById(id) {
 function openPersonModal(mode, node) {
   const title = document.getElementById('personModalTitle');
   const hint = document.getElementById('personModalHint');
-  const delBtn = document.getElementById('btnDeletePerson');
+  const delBtn = document.getElementById('btn删除Person');
 
-  title.textContent = mode === 'add' ? 'Add Person' : 'Edit Person';
-  hint.textContent = 'Writes go to Cloudflare D1 (shared to all browsers).';
+  title.textContent = mode === 'add' ? 'Add Person' : '编辑 Person';
+  hint.textContent = '修改会写入 Cloudflare D1，并在所有浏览器同步。';
 
   document.getElementById('personName').value = node?.name || '';
   document.getElementById('personPosition').value = node?.position || '';
@@ -258,34 +259,34 @@ document.getElementById('btnSavePerson').addEventListener('click', async (e) => 
     deathYear: document.getElementById('personDeathYear').value.trim(),
     personality: document.getElementById('personPersonality').value.trim()
   };
-  if (!payload.name) return toast('Name required');
+  if (!payload.name) return toast('姓名不能为空');
 
   try {
     if (mode === 'add') {
       await api('/api/nodes', { method: 'POST', body: JSON.stringify(payload) });
-      toast('Added');
+      toast('已添加');
     } else {
       await api(`/api/nodes/${encodeURIComponent(nodeId)}`, { method: 'PUT', body: JSON.stringify({ ...payload, id: nodeId }) });
-      toast('Saved');
+      toast('已保存');
     }
     closeModal('personModal');
     await refreshAll();
   } catch (err) {
-    toast('Save failed: ' + err.message);
+    toast('保存失败：' + err.message);
   }
 });
 
-document.getElementById('btnDeletePerson').addEventListener('click', async (e) => {
+document.getElementById('btn删除Person').addEventListener('click', async (e) => {
   const id = e.currentTarget.dataset.nodeId;
   if (!id) return;
-  if (!confirm('Delete this person? Links will also be removed.')) return;
+  if (!confirm('确定删除该人物吗？相关关系线也会一并删除。')) return;
   try {
     await api(`/api/nodes/${encodeURIComponent(id)}`, { method: 'DELETE' });
     closeModal('personModal');
     await refreshAll();
-    toast('Deleted');
+    toast('已删除');
   } catch (err) {
-    toast('Delete failed: ' + err.message);
+    toast('删除失败：' + err.message);
   }
 });
 
@@ -322,20 +323,20 @@ document.getElementById('relTypeSelect').addEventListener('change', (e) => {
 document.getElementById('btnSaveRelation').addEventListener('click', async () => {
   const source = document.getElementById('relSource').value;
   const target = document.getElementById('relTarget').value;
-  if (!source || !target) return toast('Select nodes');
-  if (source === target) return toast('Choose different nodes');
+  if (!source || !target) return toast('请选择两个人物');
+  if (source === target) return toast('请选择两个不同的人物');
 
   let type = document.getElementById('relTypeSelect').value;
   if (type === '__custom__') {
     type = document.getElementById('relCustomType').value.trim();
-    if (!type) return toast('Custom type required');
+    if (!type) return toast('请输入自定义关系类型');
   }
 
   try {
     await api('/api/links', { method: 'POST', body: JSON.stringify({ source, target, type }) });
     closeModal('relationModal');
     await refreshAll();
-    toast('Relation added');
+    toast('关系已添加');
   } catch (e) {
     toast('Add relation failed: ' + e.message);
   }
@@ -376,11 +377,11 @@ function renderSidebar(nodeId) {
       <div id="relList"></div>
     </div>
     <div class="detail-actions">
-      <button class="btn btn-secondary" id="btnEditNode">Edit</button>
+      <button class="btn btn-secondary" id="btn编辑Node">编辑</button>
     </div>
   `;
 
-  document.getElementById('btnEditNode').addEventListener('click', () => openPersonModal('edit', node));
+  document.getElementById('btn编辑Node').addEventListener('click', () => openPersonModal('edit', node));
 
   const relList = document.getElementById('relList');
   if (!rels.length) {
@@ -407,15 +408,15 @@ function renderSidebar(nodeId) {
         const del = document.createElement('button');
         del.className = 'relation-delete-btn';
         del.textContent = '×';
-        del.title = 'Delete relation';
+        del.title = '删除关系';
         del.addEventListener('click', async () => {
-          if (!confirm('Delete this relation?')) return;
+          if (!confirm('确定删除这条关系吗？')) return;
           try {
             await api(`/api/links/${encodeURIComponent(l.id)}`, { method: 'DELETE' });
             await refreshAll();
-            toast('Relation deleted');
+            toast('关系已删除');
           } catch (e) {
-            toast('Delete failed: ' + e.message);
+            toast('删除失败：' + e.message);
           }
         });
         item.appendChild(del);
@@ -570,7 +571,7 @@ window.addEventListener('load', async () => {
   try {
     setApiBaseHint();
     await refreshAll();
-    toast('Loaded');
+    toast('已加载');
   } catch (e) {
     toast('Load failed: ' + e.message);
   }
