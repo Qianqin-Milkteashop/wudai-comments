@@ -125,8 +125,8 @@ function clearAdmin() {
 
 function openAdminModal() {
   const input = document.getElementById('adminKeyInput');
-  const logoutBtn = document.getElementById('adminLogoutBtn');
-  const loginBtn = document.getElementById('adminLoginBtn');
+  const logoutBtn = document.getElementById('btnAdminLogout');
+  const loginBtn = document.getElementById('btnAdminLogin');
   if (logoutBtn) logoutBtn.style.display = ADMIN_OK ? 'inline-flex' : 'none';
   if (loginBtn) loginBtn.textContent = ADMIN_OK ? '重新进入' : '进入';
   if (input) {
