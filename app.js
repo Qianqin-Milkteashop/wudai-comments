@@ -776,7 +776,7 @@ on('btnReset','click', () => {
   svg.transition().call(zoomBehavior.transform, d3.zoomIdentity);
 });
 
-// Export as image
+// Export as SVG (更可靠的导出方式)
 on('btnExportImage','click', async () => {
   try {
     toast('正在生成图片...');
@@ -788,26 +788,20 @@ on('btnExportImage','click', async () => {
       return;
     }
     
-    // 获取SVG的实际尺寸
-    const bbox = svgElement.getBBox();
-    const width = svgElement.width.baseVal.value || 900;
-    const height = svgElement.height.baseVal.value || 600;
-    
     // 克隆SVG
     const clonedSvg = svgElement.cloneNode(true);
     
-    // 添加内联样式到克隆的SVG中
+    // 添加内联样式
     const styleElement = document.createElementNS('http://www.w3.org/2000/svg', 'style');
     styleElement.textContent = `
       .link { 
-        stroke: #e0e0e0; 
+        stroke: #cccccc; 
         stroke-width: 2px; 
-        stroke-opacity: 1;
       }
       .link-label { 
         font-size: 12px; 
         fill: #666666; 
-        font-family: 'Noto Serif SC', serif;
+        font-family: Arial, sans-serif;
         font-weight: 600;
       }
       .node circle { 
@@ -821,12 +815,10 @@ on('btnExportImage','click', async () => {
         stroke-width: 3px; 
       }
       .node text { 
-        font-family: 'Noto Serif SC', serif; 
+        font-family: Arial, sans-serif; 
         font-size: 14px; 
         fill: #1a1a1a; 
         font-weight: 600;
-        text-anchor: middle;
-        dominant-baseline: middle;
       }
       .node.center text { 
         fill: #ffffff; 
@@ -847,54 +839,26 @@ on('btnExportImage','click', async () => {
     const serializer = new XMLSerializer();
     let svgString = serializer.serializeToString(clonedSvg);
     
-    // 添加XML命名空间
-    svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+    // 添加XML声明和命名空间
+    svgString = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgString;
+    if (!svgString.includes('xmlns="http://www.w3.org/2000/svg"')) {
+      svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+    }
     
-    // 创建Blob
+    // 创建Blob并下载SVG文件
     const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    link.download = `五代十国人物关系图_${timestamp}.svg`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
     
-    // 创建Image并转换为PNG
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const scale = 2; // 2倍分辨率，提高清晰度
-      canvas.width = width * scale;
-      canvas.height = height * scale;
-      
-      const ctx = canvas.getContext('2d');
-      ctx.scale(scale, scale);
-      
-      // 绘制白色背景
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-      
-      // 绘制SVG
-      ctx.drawImage(img, 0, 0, width, height);
-      
-      // 转换为PNG并下载
-      canvas.toBlob((blob) => {
-        const link = document.createElement('a');
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-        link.download = `五代十国人物关系图_${timestamp}.png`;
-        link.href = URL.createObjectURL(blob);
-        link.click();
-        
-        // 清理
-        URL.revokeObjectURL(url);
-        URL.revokeObjectURL(link.href);
-        
-        toast('图片已导出');
-      }, 'image/png');
-    };
+    toast('SVG图片已导出（可用浏览器打开或转换为PNG）');
     
-    img.onerror = () => {
-      toast('导出失败：图片生成错误');
-      URL.revokeObjectURL(url);
-    };
-    
-    img.src = url;
   } catch (err) {
+    console.error('导出错误：', err);
     toast('导出失败：' + err.message);
   }
 });
