@@ -93,11 +93,14 @@ body {
     border: 2px solid var(--color-border-dark);
     box-shadow: var(--shadow-md);
     transition: var(--transition);
+    text-decoration: none;
+    cursor: pointer;
 }
 
 .author-signature:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
+    border-color: var(--color-accent);
 }
 
 .author-avatar {
