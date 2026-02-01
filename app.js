@@ -788,45 +788,95 @@ on('btnExportImage','click', async () => {
       return;
     }
     
-    // 克隆SVG以避免影响原图
+    // 获取SVG的实际尺寸
+    const bbox = svgElement.getBBox();
+    const width = svgElement.width.baseVal.value || 900;
+    const height = svgElement.height.baseVal.value || 600;
+    
+    // 克隆SVG
     const clonedSvg = svgElement.cloneNode(true);
     
-    // 设置白色背景
+    // 添加内联样式到克隆的SVG中
+    const styleElement = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    styleElement.textContent = `
+      .link { 
+        stroke: #e0e0e0; 
+        stroke-width: 2px; 
+        stroke-opacity: 1;
+      }
+      .link-label { 
+        font-size: 12px; 
+        fill: #666666; 
+        font-family: 'Noto Serif SC', serif;
+        font-weight: 600;
+      }
+      .node circle { 
+        fill: #ffffff; 
+        stroke: #2c2c2c; 
+        stroke-width: 2px; 
+      }
+      .node.center circle { 
+        fill: #2c2c2c; 
+        stroke: #333333; 
+        stroke-width: 3px; 
+      }
+      .node text { 
+        font-family: 'Noto Serif SC', serif; 
+        font-size: 14px; 
+        fill: #1a1a1a; 
+        font-weight: 600;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+      .node.center text { 
+        fill: #ffffff; 
+        font-size: 16px; 
+        font-weight: 700; 
+      }
+    `;
+    clonedSvg.insertBefore(styleElement, clonedSvg.firstChild);
+    
+    // 添加白色背景
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
     rect.setAttribute('width', '100%');
     rect.setAttribute('height', '100%');
     rect.setAttribute('fill', '#ffffff');
-    clonedSvg.insertBefore(rect, clonedSvg.firstChild);
+    clonedSvg.insertBefore(rect, styleElement.nextSibling);
     
-    // 获取SVG的XML字符串
+    // 序列化SVG
     const serializer = new XMLSerializer();
-    const svgString = serializer.serializeToString(clonedSvg);
+    let svgString = serializer.serializeToString(clonedSvg);
+    
+    // 添加XML命名空间
+    svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
     
     // 创建Blob
     const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     
-    // 创建Image加载SVG
+    // 创建Image并转换为PNG
     const img = new Image();
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
     img.onload = () => {
-      // 设置canvas尺寸
-      canvas.width = svgElement.width.baseVal.value || 900;
-      canvas.height = svgElement.height.baseVal.value || 600;
+      const canvas = document.createElement('canvas');
+      const scale = 2; // 2倍分辨率，提高清晰度
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      
+      const ctx = canvas.getContext('2d');
+      ctx.scale(scale, scale);
       
       // 绘制白色背景
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, width, height);
       
-      // 绘制图片
-      ctx.drawImage(img, 0, 0);
+      // 绘制SVG
+      ctx.drawImage(img, 0, 0, width, height);
       
       // 转换为PNG并下载
       canvas.toBlob((blob) => {
         const link = document.createElement('a');
-        link.download = `五代十国人物关系图_${new Date().getTime()}.png`;
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        link.download = `五代十国人物关系图_${timestamp}.png`;
         link.href = URL.createObjectURL(blob);
         link.click();
         
