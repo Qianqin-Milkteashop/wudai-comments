@@ -197,6 +197,12 @@ body {
     color: var(--color-text);
 }
 
+.fab-success {
+    background: #27ae60;
+    color: var(--color-bg);
+    border-color: #27ae60;
+}
+
 .fab-icon {
     font-size: 1.25rem;
     line-height: 1;
@@ -1184,3 +1190,4 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--color-accent);
 }
+
