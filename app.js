@@ -626,20 +626,6 @@ function renderSidebar(nodeId) {
     }
   }
 }
-            await api(`/api/links/${encodeURIComponent(l.id)}`, { method: 'DELETE' });
-            await refreshAll();
-            toast('关系已删除');
-          } catch (e) {
-            toast('删除失败：' + e.message);
-          }
-        });
-        item.appendChild(del);
-      }
-
-      relList.appendChild(item);
-    }
-  }
-}
 
 function showTooltip(evt, node) {
   const tt = document.getElementById('nodeTooltip');
