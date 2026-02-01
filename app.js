@@ -763,7 +763,6 @@ window.addEventListener('load', async () => {
     setApiBaseHint();
     updateAdminBadge();
     setupAdminModal();
-    setupAdminHotkeySequence();
     await refreshAll();
     toast('已加载');
   } catch (e) {
